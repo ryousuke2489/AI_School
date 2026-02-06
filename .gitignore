@@ -1,0 +1,38 @@
+# Swift / Xcode
+.build/
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.dSYM
+*.dSYM.zip
+*.ipa
+*.app
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Package manager
+Packages/
+Package.resolved
+
+# Build artifacts
+build/
+dist/
+
+# Environment
+.env
+.env.local
