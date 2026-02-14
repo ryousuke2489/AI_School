@@ -6,11 +6,9 @@
   "teammateMode": "in-process",
   "permissions": {
     "allow": [
-      "Bash(swift build*)",
-      "Bash(swift test*)",
-      "Bash(swift run*)",
       "Bash(git *)",
       "Bash(ls *)",
+      "Bash(mkdir *)",
       "Bash(which *)",
       "Bash(tmux *)"
     ]

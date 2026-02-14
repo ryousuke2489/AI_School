@@ -1,51 +1,51 @@
-# CodexBar - AI Token Limit Monitor for macOS
+# AI School - 生成AI教材コンテンツ制作プロジェクト
 
-## Project Overview
+## プロジェクト概要
 
-CodexBar is a Swift-based macOS menu bar application that monitors AI service token usage limits across multiple providers (Claude, Codex, Cursor, Gemini, Copilot).
+生成AIに関する教材コンテンツを、エージェントチームで協力して制作するプロジェクトです。
+最終成果物として、構成・台本・スライド資料・動画編集指示書を一貫した品質で制作します。
 
-## Tech Stack
-
-- **Language**: Swift 5.9+
-- **Platform**: macOS 14+ (Sonoma)
-- **Build System**: Swift Package Manager (SPM)
-- **Dependencies**: swift-log (1.5.0+), swift-argument-parser (1.3.0+)
-
-## Project Structure
+## ディレクトリ構成
 
 ```
-Sources/
-├── CodexBarCore/     # Core library (cross-platform) - models, providers, formatting
-├── CodexBar/         # macOS menu bar app - UI, preferences, status bar
-└── CodexBarCLI/      # Command-line tool
-Tests/
-└── CodexBarTests/    # Unit tests
+content/
+├── 00_curriculum/        # 構成担当: カリキュラム設計・全体構成
+│   └── curriculum.md     # 全講義の構成表
+├── 01_scripts/           # 台本担当: 各講義の台本（ナレーション原稿）
+│   ├── lecture_01.md
+│   ├── lecture_02.md
+│   └── ...
+├── 02_slides/            # 資料作成担当: スライド原稿（Marp形式）
+│   ├── lecture_01.md
+│   ├── lecture_02.md
+│   └── ...
+└── 03_video_editing/     # 動画編集担当: 編集指示書・絵コンテ
+    ├── editing_guide.md  # 全体の編集方針
+    ├── lecture_01.md
+    └── ...
 ```
 
-## Key Commands
+## エージェントチーム構成
 
-```bash
-swift build            # Build the project
-swift build -c release # Build for release
-swift test             # Run all tests
-swift run CodexBar     # Run the macOS app
-swift run codexbar-cli # Run the CLI tool
-```
+| ロール | 担当ディレクトリ | 責務 |
+|--------|------------------|------|
+| **構成担当** | `content/00_curriculum/` | カリキュラム設計、講義順序、学習目標の策定 |
+| **台本担当** | `content/01_scripts/` | 各講義のナレーション台本、話し言葉での解説文 |
+| **資料作成担当** | `content/02_slides/` | スライド原稿（Marp Markdown形式）、図表の指示 |
+| **動画編集担当** | `content/03_video_editing/` | 編集指示書、カット割り、テロップ・SE指示 |
 
-## Architecture Notes
+## チームワークフロー
 
-- **Providers**: Each AI provider has a `ProviderDescriptor` in `Sources/CodexBarCore/Providers/`
-- **Rate Windows**: Session-based (5-hour) and periodic (weekly/monthly/daily) tracking via `RateWindow.swift`
-- **Registry**: `ProviderDescriptorRegistry.swift` manages all provider descriptors
-- **Settings**: macOS UserDefaults via `SettingsStore.swift`, app config in `AppConfig.swift`
-- **Strict Concurrency**: Enabled for main targets
+1. **構成担当** がカリキュラム全体を設計（他の全員がこれを参照）
+2. **台本担当** がカリキュラムに基づいて各講義の台本を執筆
+3. **資料作成担当** がカリキュラム＋台本を参照してスライド原稿を作成
+4. **動画編集担当** が台本＋スライドを参照して編集指示書を作成
 
-## Agent Team Guidelines
+## エージェントチーム運用ルール
 
-When working as part of an agent team on this project:
-
-- Each team member should own distinct files/modules to avoid edit conflicts
-- Provider implementations are independent - safe to work on in parallel
-- Core models (RateWindow, UsageSnapshot, etc.) are shared - coordinate changes
-- Always run `swift test` after changes to verify nothing is broken
-- The `CodexBarCore` module is cross-platform; avoid macOS-specific APIs there
+- 各チームメンバーは自分の担当ディレクトリ内のファイルのみを編集すること
+- 他チームメンバーのファイルは「読み取りのみ」で参照すること
+- 構成担当のカリキュラムが全体の基準文書となる
+- 台本の文体は「です・ます調」で統一
+- スライドは Marp Markdown 形式で作成
+- 日本語で全コンテンツを作成すること
