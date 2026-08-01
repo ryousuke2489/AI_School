@@ -10,6 +10,7 @@ import Logging
 public final class UsageStore {
     private let logger = Logger(label: "com.steipete.CodexBar.usage")
     private let settingsStore: SettingsStore
+    private let deviceLinkStore: DeviceLinkStore
     private var refreshTimer: Timer?
 
     // MARK: - Observable State
@@ -32,10 +33,20 @@ public final class UsageStore {
     /// When the last successful refresh completed.
     public private(set) var lastRefreshDate: Date?
 
+    /// Linked Macs discovered via the shared sync folder (includes this device).
+    public private(set) var linkedDevices: [LinkedDeviceStatus] = []
+
+    /// Last device-link error message, if any.
+    public private(set) var deviceLinkError: String?
+
     // MARK: - Init
 
-    public init(settingsStore: SettingsStore) {
+    public init(
+        settingsStore: SettingsStore,
+        deviceLinkStore: DeviceLinkStore = DeviceLinkStore()
+    ) {
         self.settingsStore = settingsStore
+        self.deviceLinkStore = deviceLinkStore
         setupRefreshTimer()
     }
 
@@ -48,6 +59,10 @@ public final class UsageStore {
         defer { isRefreshing = false }
 
         logger.info("Starting usage refresh (force: \(force))")
+
+        if settingsStore.deviceLinkEnabled {
+            pullSharedSettingsIfNeeded()
+        }
 
         let registry = ProviderDescriptorRegistry.shared
         let context = ProviderFetchContext(forceRefresh: force)
@@ -78,6 +93,14 @@ public final class UsageStore {
         }
 
         lastRefreshDate = Date()
+
+        if settingsStore.deviceLinkEnabled {
+            syncDeviceLink()
+        } else {
+            linkedDevices = []
+            deviceLinkError = nil
+        }
+
         logger.info("Usage refresh complete")
     }
 
@@ -98,6 +121,10 @@ public final class UsageStore {
         case .error(let message):
             errors[result.provider] = message
         }
+
+        if settingsStore.deviceLinkEnabled {
+            syncDeviceLink()
+        }
     }
 
     // MARK: - Accessors
@@ -116,6 +143,11 @@ public final class UsageStore {
     /// Get the error message for a provider.
     public func error(for provider: UsageProvider) -> String? {
         errors[provider]
+    }
+
+    /// Remote linked Macs only.
+    public var remoteLinkedDevices: [LinkedDeviceStatus] {
+        linkedDevices.filter { !$0.isLocal }
     }
 
     /// Summary string for a provider's usage.
@@ -144,6 +176,94 @@ public final class UsageStore {
         }
 
         return parts.isEmpty ? "Connected" : parts.joined(separator: " | ")
+    }
+
+    // MARK: - Device Link
+
+    /// Publish local data and reload peer devices from the shared folder.
+    public func syncDeviceLink() {
+        guard settingsStore.deviceLinkEnabled else {
+            linkedDevices = []
+            deviceLinkError = nil
+            return
+        }
+
+        let mode = settingsStore.deviceLinkMode
+        let customPath = settingsStore.deviceLinkCustomFolderPath
+        let identity = deviceLinkStore.localIdentity()
+
+        do {
+            let payload = DeviceLinkPayload(
+                identity: identity,
+                updatedAt: Date(),
+                enabledProviders: settingsStore.orderedEnabledProviders,
+                snapshotMap: snapshots
+            )
+            try deviceLinkStore.publish(
+                payload: payload,
+                mode: mode,
+                customFolderPath: customPath
+            )
+
+            if settingsStore.deviceLinkSyncSettings {
+                let shared = settingsStore.makeSharedDeviceSettings(updatedBy: identity.deviceId)
+                let existing = try? deviceLinkStore.loadSharedSettings(
+                    mode: mode,
+                    customFolderPath: customPath
+                )
+                // Avoid refresh ping-pong: only rewrite when preference values actually differ.
+                if existing == nil || !Self.sharedSettingsValuesMatch(existing!, shared) {
+                    try deviceLinkStore.publishSharedSettings(
+                        shared,
+                        mode: mode,
+                        customFolderPath: customPath
+                    )
+                }
+            }
+
+            linkedDevices = try deviceLinkStore.loadLinkedDevices(
+                mode: mode,
+                customFolderPath: customPath
+            )
+            deviceLinkError = nil
+            logger.info("Device link synced: \(linkedDevices.count) device(s)")
+        } catch {
+            deviceLinkError = error.localizedDescription
+            logger.warning("Device link sync failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func pullSharedSettingsIfNeeded() {
+        guard settingsStore.deviceLinkSyncSettings else { return }
+        do {
+            guard let shared = try deviceLinkStore.loadSharedSettings(
+                mode: settingsStore.deviceLinkMode,
+                customFolderPath: settingsStore.deviceLinkCustomFolderPath
+            ) else { return }
+
+            let changed = settingsStore.applySharedDeviceSettingsIfNewer(
+                shared,
+                localDeviceId: deviceLinkStore.localDeviceId
+            )
+            if changed {
+                updateRefreshTimer()
+                logger.info("Applied shared settings from linked Mac")
+            }
+        } catch {
+            // Non-fatal: local refresh should continue even if shared settings are unavailable.
+            logger.debug("Shared settings pull skipped: \(error.localizedDescription)")
+        }
+    }
+
+    private static func sharedSettingsValuesMatch(
+        _ lhs: SharedDeviceSettings,
+        _ rhs: SharedDeviceSettings
+    ) -> Bool {
+        lhs.refreshFrequency == rhs.refreshFrequency
+            && lhs.mergeIcons == rhs.mergeIcons
+            && lhs.menuBarMetric == rhs.menuBarMetric
+            && lhs.enabledProviders == rhs.enabledProviders
+            && lhs.providerOrder == rhs.providerOrder
     }
 
     // MARK: - Timer

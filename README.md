@@ -13,6 +13,7 @@ CodexBar is a lightweight macOS menu bar application that monitors usage limits 
 - **Real-time tracking** — Session-based (5-hour) and weekly quota windows with countdown timers
 - **CLI tool** — `codexbar` command for scripts and CI/CD pipelines
 - **Privacy-first** — On-device parsing, no data leaves your machine
+- **Device Link** — Connect Mac mini and MacBook via iCloud Drive or a custom shared folder (usage + prefs; tokens stay local)
 - **Configurable** — Per-provider toggles, refresh intervals, merge/split icon modes
 
 ## Requirements
@@ -46,6 +47,33 @@ swift run codexbar-cli list
 
 # Show cost estimate
 swift run codexbar-cli cost --provider claude --days 30
+
+# List Macs linked via the shared device-link folder
+swift run codexbar-cli devices --mode custom --folder ~/Dropbox/CodexBar
+```
+
+## Device Link (Mac mini + MacBook)
+
+CodexBar can publish each Mac's local usage snapshots into a shared folder so your other Macs can see them.
+
+1. Open **Settings → Devices**
+2. Enable **Link Macs via shared folder**
+3. Choose **iCloud Drive** (same Apple ID on both Macs) or a **Custom folder** (Dropbox, NAS, `rsync`'d path, etc.)
+4. Repeat on the other Mac
+
+What syncs:
+
+- Usage snapshots and enabled-provider lists per device
+- Optional preference mirror (refresh interval, display, provider toggles)
+
+What does **not** sync:
+
+- API tokens / token accounts (remain local on each Mac)
+
+CLI listing:
+
+```bash
+swift run codexbar-cli devices --mode icloud
 ```
 
 ## Architecture
@@ -54,6 +82,7 @@ swift run codexbar-cli cost --provider claude --days 30
 Sources/
 ├── CodexBarCore/           # Core library (cross-platform)
 │   ├── Config/             # App configuration
+│   ├── DeviceLink/         # Multi-Mac shared-folder sync
 │   ├── Providers/          # Provider implementations
 │   │   ├── Claude/         # Claude provider
 │   │   ├── Codex/          # OpenAI Codex provider

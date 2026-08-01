@@ -272,6 +272,11 @@ final class StatusItemController: NSObject, StatusItemControlling, NSMenuDelegat
             ))
         }
 
+        if settingsStore.deviceLinkEnabled {
+            menu.addItem(NSMenuItem.separator())
+            addDeviceLinkMenuItems(to: menu)
+        }
+
         menu.addItem(NSMenuItem.separator())
 
         let prefsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
@@ -283,6 +288,56 @@ final class StatusItemController: NSObject, StatusItemControlling, NSMenuDelegat
         let quitItem = NSMenuItem(title: "Quit CodexBar", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
+    }
+
+    private func addDeviceLinkMenuItems(to menu: NSMenu) {
+        let header = NSMenuItem(title: "Linked Macs", action: nil, keyEquivalent: "")
+        header.attributedTitle = makeAttributedTitle(title: "Linked Macs", isHeader: true)
+        menu.addItem(header)
+
+        if let error = usageStore.deviceLinkError {
+            menu.addItem(NSMenuItem(title: "  \(error)", action: nil, keyEquivalent: ""))
+            return
+        }
+
+        let remotes = usageStore.remoteLinkedDevices
+        if remotes.isEmpty {
+            menu.addItem(NSMenuItem(
+                title: "  Waiting for Mac mini / MacBook…",
+                action: nil,
+                keyEquivalent: ""
+            ))
+            return
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+
+        for device in remotes {
+            let ago = formatter.localizedString(for: device.updatedAt, relativeTo: Date())
+            let stale = device.isStale ? " · stale" : ""
+            menu.addItem(NSMenuItem(
+                title: "  \(device.deviceName) · \(ago)\(stale)",
+                action: nil,
+                keyEquivalent: ""
+            ))
+
+            for provider in device.payload.enabledProviders {
+                guard let snapshot = device.payload.snapshotMap[provider] else { continue }
+                var parts: [String] = [provider.rawValue]
+                if let session = snapshot.sessionWindow {
+                    parts.append("S \(Int(session.usedPercentage * 100))%")
+                }
+                if let periodic = snapshot.periodicWindow {
+                    parts.append("P \(Int(periodic.usedPercentage * 100))%")
+                }
+                menu.addItem(NSMenuItem(
+                    title: "    \(parts.joined(separator: " · "))",
+                    action: nil,
+                    keyEquivalent: ""
+                ))
+            }
+        }
     }
 
     // MARK: - Attributed Titles
