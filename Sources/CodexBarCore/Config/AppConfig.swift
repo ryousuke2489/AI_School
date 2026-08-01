@@ -30,6 +30,13 @@ public enum AppConfig {
         return dir
     }
 
+    /// Local fallback directory used when iCloud Drive is unavailable for device link.
+    public static var deviceLinkDirectory: URL {
+        let dir = appSupportDirectory.appendingPathComponent("DeviceLink")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
     /// Default refresh interval in seconds.
     public static let defaultRefreshInterval: TimeInterval = 300  // 5 minutes
 

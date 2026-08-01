@@ -1,7 +1,7 @@
 import Foundation
 
 /// A point-in-time snapshot of usage data for a single provider.
-public struct UsageSnapshot: Sendable, Codable {
+public struct UsageSnapshot: Sendable, Codable, Equatable {
     /// The provider this snapshot belongs to.
     public let provider: UsageProvider
 
@@ -43,7 +43,7 @@ public struct UsageSnapshot: Sendable, Codable {
 }
 
 /// Identity information for a provider account.
-public struct ProviderIdentity: Sendable, Codable {
+public struct ProviderIdentity: Sendable, Codable, Equatable {
     public let email: String?
     public let organization: String?
     public let plan: String?

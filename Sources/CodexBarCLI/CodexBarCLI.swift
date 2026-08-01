@@ -12,6 +12,7 @@ struct CodexBarCLI: AsyncParsableCommand {
             StatusCommand.self,
             ListCommand.self,
             CostCommand.self,
+            DevicesCommand.self,
         ],
         defaultSubcommand: StatusCommand.self
     )
@@ -178,5 +179,81 @@ struct CostCommand: AsyncParsableCommand {
         print()
         print("  Token cost data requires provider-specific log parsing.")
         print("  Configure local JSONL log paths in settings to enable.")
+    }
+}
+
+// MARK: - Devices Command
+
+struct DevicesCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "devices",
+        abstract: "List Macs linked via the shared device-link folder"
+    )
+
+    @Option(name: .long, help: "Sync mode: icloud | custom")
+    var mode: String = DeviceLinkMode.iCloudDrive.rawValue
+
+    @Option(name: .long, help: "Custom sync folder path (required for --mode custom)")
+    var folder: String?
+
+    @Flag(name: .long, help: "Publish a local heartbeat payload before listing")
+    var publish: Bool = false
+
+    func run() throws {
+        let store = DeviceLinkStore()
+        guard let linkMode = DeviceLinkMode(rawValue: mode) else {
+            print("Unknown mode: \(mode)")
+            print("Use --mode icloud or --mode custom")
+            throw ExitCode.failure
+        }
+
+        if publish {
+            let identity = store.localIdentity()
+            let payload = DeviceLinkPayload(
+                identity: identity,
+                enabledProviders: [],
+                snapshots: []
+            )
+            try store.publish(
+                payload: payload,
+                mode: linkMode,
+                customFolderPath: folder
+            )
+            print("Published local device payload for \(identity.deviceName)")
+            print()
+        }
+
+        let devices = try store.loadLinkedDevices(
+            mode: linkMode,
+            customFolderPath: folder
+        )
+
+        print("CodexBar - Linked Devices")
+        print(String(repeating: "=", count: 40))
+        print()
+
+        if devices.isEmpty {
+            print("No linked devices found.")
+            print("Enable Device Link in Settings on each Mac, or pass --publish.")
+            return
+        }
+
+        let formatter = ISO8601DateFormatter()
+        for device in devices {
+            let marker = device.isLocal ? " (this Mac)" : ""
+            print("\(device.deviceName)\(marker)")
+            print("  id: \(device.id.uuidString.lowercased())")
+            print("  updated: \(formatter.string(from: device.updatedAt))")
+            if device.isStale {
+                print("  status: stale")
+            }
+            let providers = device.payload.enabledProviders.map(\.rawValue)
+            if providers.isEmpty {
+                print("  providers: (none)")
+            } else {
+                print("  providers: \(providers.joined(separator: ", "))")
+            }
+            print()
+        }
     }
 }
